@@ -15,7 +15,15 @@ const POS_MAP = {
 };
 
 function euclid(a,b){ return Math.hypot(a.x-b.x,a.y-b.y); }
-function distBucket(d){ if(d<=0) return 0; if(d<1.5) return 1; if(d<3) return 2; return 3; }
+// reemplazar la función distBucket existente por esta
+function distBucket(d){
+  if(d <= 0) return 0;
+  if(d < 1.5) return 1;
+  if(d < 3) return 2;
+  if(d < 5) return 3;
+  return 4; // muy lejos
+}
+
 
 // angulo relativo de impala mirando norte
 function angleDeg(from, to){

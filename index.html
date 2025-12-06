@@ -1,32 +1,38 @@
 <!doctype html>
 <html lang="es">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>León vs Impala — Simulador Q-Learning</title>
-<link rel="stylesheet" href="css/styles.css">
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>León vs Impala — Simulador Q-Learning</title>
+    <link rel="stylesheet" href="css/styles.css">
 </head>
 
 <body>
 
 <header>
-    <h1>Simulador: León aprende a cazar un Impala</h1>
-    <p class="subtitle">Visualiza la cacería, entrena al león y revisa su base de conocimiento (Q-table)</p>
+    <h1>Simulador: León aprende a cazar un Impala</h1>
+    <p class="subtitle">Visualiza la cacería, entrena al león y revisa su base de conocimiento (Q-table)</p>
 </header>
 
 <main class="layout">
 
-        <section class="left">
+    <!-- ===========================
+         PANEL IZQUIERDO (Simulador)
+         =========================== -->
+    <section class="left">
 
-        <div class="main-visual-area"> 
+        <div class="main-visual-area">
 
-            <div class="canvas-container"> 
+            <!-- Canvas -->
+            <div class="canvas-container">
                 <canvas id="board" width="510" height="510"></canvas>
             </div>
 
-            <div class="controls"> 
-                
-                <label>Posición inicial del león:
+            <!-- Controles -->
+            <div class="controls">
+
+                <label>
+                    Posición inicial del león:
                     <select id="startPos">
                         <option value="1">1 (N)</option>
                         <option value="2">2 (NE)</option>
@@ -40,7 +46,8 @@
                     </select>
                 </label>
 
-                <label>Modo del Impala:
+                <label>
+                    Modo del Impala:
                     <select id="impalaMode">
                         <option value="aleatorio" selected>Aleatorio</option>
                         <option value="programado">Programado (secuencia)</option>
@@ -55,13 +62,18 @@
                 <div class="btnrow">
                     <button id="btnReset">Reset</button>
                     <button id="btnStep">Siguiente T</button>
-                    <button id="btnRun">Ejecutar (hasta terminar)</button>
-                    <button id="btnTrain">Entrenar x1000</button>
-                    <button id="btnStopTrain" style="display:none">Detener entrenamiento</button>
+                    <button id="btnRun">Ejecutar</button>
+                    <button id="btnTrain">Entrenar ×1000</button>
+                    <button id="btnStopTrain" style="display:none">Detener</button>
                 </div>
 
-            </div> </div>     </section>
-    
+            </div>
+        </div>
+    </section>
+
+    <!-- ===========================
+         PANEL DERECHO (Datos / Log)
+         =========================== -->
     <section class="right">
 
         <h2>📊 Estado Actual</h2>
@@ -75,26 +87,30 @@
         <hr>
 
         <h2>🧠 Base de Conocimiento (Q-Table)</h2>
+
         <div class="kbControls">
-            <button id="btnShowKB">Mostrar/Actualizar Q-Table</button>
-            <button id="btnExplain">Explicar Última Decisión</button>
+            <button id="btnShowKB">Mostrar/Actualizar</button>
+            <button id="btnExplain">Explicar decisión</button>
         </div>
+
         <div class="kbControls">
-            <button id="btnSaveKB">Guardar Q-Table (JSON)</button>
-            <button id="btnLoadKB">Cargar Q-Table (JSON)</button>
+            <button id="btnSaveKB">Guardar Q-Table</button>
+            <button id="btnLoadKB">Cargar Q-Table</button>
             <input type="file" id="kbFile" style="display:none">
         </div>
+
         <pre id="kbView" class="q-table-display"></pre>
 
         <hr>
-        
-        <h2>📜 Registro de Eventos (Log)</h2>
+
+        <h2>📜 Registro de Eventos</h2>
         <div id="log" class="log-area"></div>
 
     </section>
 
 </main>
 
+<!-- Scripts del simulador -->
 <script src="js/env.js"></script>
 <script src="js/impala.js"></script>
 <script src="js/leon.js"></script>
