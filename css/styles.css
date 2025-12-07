@@ -1,273 +1,235 @@
-/* ==================================== */
-/* 💻 Estilos Base y Tipografía */
-/* ==================================== */
+/* ============================================================
+   🌗 THEME PRO — Dark / Light Mode con Animación
+   ============================================================ */
 
-/* Reset básico y fuente */
-* {
-    box-sizing: border-box;
-    /* Fuente de terminal monoespaciada */
-    font-family: 'Consolas', 'Courier New', monospace; 
-    margin: 0;
-    padding: 0;
+:root {
+    --font-main: 'Consolas', 'Courier New', monospace;
+
+    /* Paleta modo oscuro */
+    --dark-bg: #0f0f0f;
+    --dark-panel: #181818;
+    --dark-text: #e6e6e6;
+    --dark-secondary: #9ba1a7;
+    --dark-accent: #00eaff;
+    --dark-border: #262626;
+
+    /* Paleta modo claro */
+    --light-bg: #f7f7f7;
+    --light-panel: #ffffff;
+    --light-text: #151515;
+    --light-secondary: #575757;
+    --light-accent: #0094b3;
+    --light-border: #cfcfcf;
+
+    --radius: 12px;
+    --transition: 0.20s ease;
 }
 
-/* Variables de color para un tema oscuro y tecnológico */
-:root {
-    --color-bg-main: #121212; /* Fondo principal muy oscuro */
-    --color-bg-panel: #1e1e1e; /* Fondo de paneles (casi negro) */
-    --color-accent: #00ffff; /* Cian / Aqua brillante para acentos */
-    --color-text-main: #f0f0f0; /* Texto claro */
-    --color-text-secondary: #aaaaaa; /* Texto secundario gris */
-    --color-border: #333333;
-    --color-success: #32ff7e; /* Verde brillante para éxito/ejecución */
-    --color-danger: #ff5555; /* Rojo para error/parada */
+/* Paleta activa */
+body[data-theme="dark"] {
+    --bg-main: var(--dark-bg);
+    --bg-panel: var(--dark-panel);
+    --text-main: var(--dark-text);
+    --text-secondary: var(--dark-secondary);
+    --accent: var(--dark-accent);
+    --border: var(--dark-border);
+}
+
+body[data-theme="light"] {
+    --bg-main: var(--light-bg);
+    --bg-panel: var(--light-panel);
+    --text-main: var(--light-text);
+    --text-secondary: var(--light-secondary);
+    --accent: var(--light-accent);
+    --border: var(--light-border);
+}
+
+/* ============================================================
+   🔧 RESET & BASE
+   ============================================================ */
+
+* {
+    margin: 0;
+    padding: 0;
+    font-family: var(--font-main);
+    box-sizing: border-box;
 }
 
 body {
-    background: var(--color-bg-main);
-    color: var(--color-text-main);
+    background: var(--bg-main);
+    color: var(--text-main);
     padding: 25px;
-    line-height: 1.6;
+    transition: background var(--transition), color var(--transition);
 }
+
+/* ============================================================
+   🏷️ TITULOS PRO
+   ============================================================ */
 
 header {
     text-align: center;
-    margin-bottom: 30px;
+    margin-bottom: 25px;
+    animation: fadeIn 0.5s ease-out;
 }
 
 header h1 {
-    color: var(--color-accent);
-    font-size: 2.8em;
-    /* Efecto de brillo de terminal */
-    text-shadow: 0 0 5px rgba(0, 255, 255, 0.5); 
-    margin-bottom: 5px;
+    font-size: 2.7rem;
+    color: var(--accent);
+    letter-spacing: 1px;
+    text-shadow: 0 0 12px rgba(0,255,255,0.4);
 }
 
 .subtitle {
-    color: var(--color-text-secondary);
-    font-size: 1.1em;
+    margin-top: 5px;
+    color: var(--text-secondary);
 }
 
-/* ==================================== */
-/* 🗺️ Layout Principal (Grid de 2 columnas) */
-/* ==================================== */
+/* Toggle dark/light */
+.theme-toggle {
+    cursor: pointer;
+    color: var(--accent);
+    margin-top: 15px;
+    font-size: 0.95em;
+    opacity: 0.8;
+    transition: 0.2s;
+}
+.theme-toggle:hover {
+    opacity: 1;
+    text-shadow: 0 0 8px var(--accent);
+}
+
+/* ============================================================
+   📐 LAYOUT PRO
+   ============================================================ */
 
 .layout {
     display: grid;
-    /* 65% para el simulador/controles internos, 35% para datos/log */
-    grid-template-columns: 65% 35%; 
+    grid-template-columns: 65% 35%;
     gap: 25px;
-    max-width: 1400px; 
-    margin: 0 auto;
+    max-width: 1400px;
+    margin: auto;
 }
 
 .left, .right {
-    background: var(--color-bg-panel);
+    background: var(--bg-panel);
     padding: 20px;
-    border-radius: 10px;
-    border: 1px solid var(--color-border);
-    box-shadow: 0 0 15px rgba(0, 0, 0, 0.5);
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+    backdrop-filter: blur(6px);
+    transition: background var(--transition), border var(--transition);
+    box-shadow: 0 0 18px rgba(0,0,0,0.4);
 }
 
-/* ==================================== */
-/* 🖼️ Distribución Interna: Canvas vs Controles */
-/* ==================================== */
-
-/* Contenedor Flex para alinear Canvas (izquierda) y Controles (derecha) */
-.main-visual-area {
-    display: flex; 
-    gap: 20px;
-    align-items: flex-start; 
-}
-
-/* 1. Canvas */
-.canvas-container {
-    flex-shrink: 0; 
-}
+/* ============================================================
+   🎮 SIMULADOR CANVAS
+   ============================================================ */
 
 #board {
-    display: block;
-    margin: 0; /* Asegura la alineación dentro del Flexbox */
-    border: 3px solid var(--color-accent); 
-    background: #2b2b2b; 
-    border-radius: 6px;
-    box-shadow: 0 0 10px rgba(0, 255, 255, 0.3);
+    border: 3px solid var(--accent);
+    background: #222;
+    border-radius: 8px;
+    box-shadow: 0 0 20px rgba(0,255,255,0.25);
+    animation: glowCanvas 6s infinite alternate;
 }
 
-/* 2. Controles */
-.controls {
-    flex-grow: 1; /* Ocupa el espacio restante junto al canvas */
-    margin-top: 0; 
-    display: flex;
-    flex-direction: column;
-    gap: 15px;
-    padding-top: 15px; /* Ajuste visual para separar de la parte superior */
+@keyframes glowCanvas {
+    0% { box-shadow: 0 0 12px rgba(0,255,255,0.2); }
+    100% { box-shadow: 0 0 24px rgba(0,255,255,0.35); }
 }
 
-.controls label {
-    font-weight: bold;
-    color: var(--color-text-main);
-    display: flex;
-    flex-direction: column;
-}
+/* ============================================================
+   🧭 CONTROLES PRO
+   ============================================================ */
 
-.controls input, .controls select {
+.controls select,
+.controls input {
     padding: 10px;
-    border-radius: 5px;
-    border: 1px solid var(--color-border);
-    background: #333;
-    color: var(--color-text-main);
-    margin-top: 5px;
-    transition: border-color 0.2s;
+    background: rgba(45,45,45,0.75);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text-main);
+    transition: var(--transition);
 }
 
-.controls input:focus, .controls select:focus {
-    border-color: var(--color-accent);
-    outline: none;
+.controls select:focus,
+.controls input:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 8px var(--accent);
 }
 
-.btnrow {
-    display: flex;
-    gap: 12px;
-    flex-wrap: wrap;
-    margin-top: 15px;
-    /* Ajuste para que los botones llenen el ancho disponible */
-    justify-content: space-between; 
-}
+/* ============================================================
+   🔘 BOTONES PRO
+   ============================================================ */
 
 button {
-    padding: 10px 18px;
-    border-radius: 5px;
-    background: #444;
-    color: var(--color-text-main);
-    border: 1px solid #555;
-    cursor: pointer;
-    transition: all 0.2s;
+    padding: 10px 16px;
     font-weight: bold;
-    text-transform: uppercase;
-    flex-grow: 1;
-    min-width: 120px;
+    background: #2e2e2e;
+    color: var(--text-main);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    transition: var(--transition);
+    cursor: pointer;
 }
 
 button:hover {
-    background: var(--color-accent);
-    color: var(--color-bg-main);
-    border-color: var(--color-accent);
-    box-shadow: 0 0 8px rgba(0, 255, 255, 0.5);
+    background: var(--accent);
+    color: #000;
+    box-shadow: 0 0 10px var(--accent);
 }
 
-/* Estilos de botones específicos */
-button#btnRun, button#btnTrain {
-    background: var(--color-success);
-    color: var(--color-bg-main);
+#btnRun, #btnTrain {
+    background: #32ff7e;
+    color: #000;
 }
-button#btnRun:hover, button#btnTrain:hover {
-    background: #3cff8c;
-    box-shadow: 0 0 10px var(--color-success);
-}
-
-button#btnStopTrain {
-    background: var(--color-danger);
-    color: var(--color-text-main);
-}
-button#btnStopTrain:hover {
-    background: #ff7777;
-    box-shadow: 0 0 10px var(--color-danger);
+#btnStopTrain {
+    background: #ff5555;
+    color: #fff;
 }
 
+/* ============================================================
+   📊 PANEL DERECHO PRO: Q-table + Log
+   ============================================================ */
 
-/* ==================================== */
-/* 📊 Data y Logs (Right Panel) */
-/* ==================================== */
-
-.right h2 {
-    color: var(--color-accent);
-    margin-bottom: 12px;
-    border-bottom: 2px solid var(--color-border);
-    padding-bottom: 5px;
-}
-
-.stats p {
-    margin-bottom: 8px;
-    color: var(--color-text-secondary);
-}
-.stats span {
-    color: var(--color-text-main);
-    font-weight: bold;
-}
-
-.kbControls {
-    display: flex;
-    gap: 10px;
-    flex-wrap: wrap;
-    margin-bottom: 15px;
-}
-
-/* Q-Table View */
-#kbView {
-    height: 350px;
-    background: #000; 
-    color: var(--color-success); 
+#kbView, #log {
+    background: rgba(0,0,0,0.8);
+    border-radius: var(--radius);
+    border: 1px solid var(--accent);
     padding: 12px;
+    font-size: 0.92em;
+    height: 320px;
     overflow: auto;
-    border-radius: 5px;
-    font-family: monospace;
-    white-space: pre;
-    border: 1px solid var(--color-accent);
 }
 
-/* Log Area */
-#log {
-    height: 280px;
-    background: #000;
-    color: var(--color-accent); 
-    padding: 12px;
-    overflow-y: auto;
+/* Estado colapsable */
+.collapsible {
+    cursor: pointer;
+    padding: 8px 12px;
+    background: var(--accent);
+    color: #000;
     border-radius: 5px;
-    font-family: monospace;
-    border: 1px solid var(--color-accent);
-}
-
-/* Estilo para cada línea de log */
-#log div {
-    border-bottom: 1px dotted rgba(0, 255, 255, 0.1);
-    padding: 4px 0;
-    font-size: 0.95em;
-}
-#log div:first-child {
     font-weight: bold;
-    color: var(--color-text-main); 
+    transition: 0.25s;
+    margin-bottom: 6px;
 }
-#log div:last-child {
-    border-bottom: none;
+.collapsible:hover {
+    box-shadow: 0 0 8px var(--accent);
 }
-
-hr {
-    border: 0;
-    height: 1px;
-    background: var(--color-border);
-    margin: 20px 0;
+.content-collapsible {
+    display: none;
+    overflow: hidden;
 }
 
-/* ==================================== */
-/* 📱 Responsive Design */
-/* ==================================== */
+/* ============================================================
+   📱 RESPONSIVE
+   ============================================================ */
 
 @media (max-width: 1100px) {
-    /* La regla principal para apilar las dos secciones */
     .layout {
         grid-template-columns: 1fr;
     }
-    
-    /* Regla para apilar Canvas y Controles dentro de la sección izquierda */
     .main-visual-area {
         flex-direction: column;
-        align-items: center; 
-    }
-    
-    .controls {
-        width: 100%; 
-        margin-top: 20px;
-        padding-top: 0;
+        align-items: center;
     }
 }
