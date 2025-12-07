@@ -1,64 +1,105 @@
 /* ============================================================
-   🎨 TEMA GLOBAL (Dark Cyber-Tech)
+   🌗 THEME PRO — Dark / Light Mode con Animación
    ============================================================ */
 
-/* Reset */
+:root {
+    --font-main: 'Consolas', 'Courier New', monospace;
+
+    /* Paleta modo oscuro */
+    --dark-bg: #0f0f0f;
+    --dark-panel: #181818;
+    --dark-text: #e6e6e6;
+    --dark-secondary: #9ba1a7;
+    --dark-accent: #00eaff;
+    --dark-border: #262626;
+
+    /* Paleta modo claro */
+    --light-bg: #f7f7f7;
+    --light-panel: #ffffff;
+    --light-text: #151515;
+    --light-secondary: #575757;
+    --light-accent: #0094b3;
+    --light-border: #cfcfcf;
+
+    --radius: 12px;
+    --transition: 0.20s ease;
+}
+
+/* Paleta activa */
+body[data-theme="dark"] {
+    --bg-main: var(--dark-bg);
+    --bg-panel: var(--dark-panel);
+    --text-main: var(--dark-text);
+    --text-secondary: var(--dark-secondary);
+    --accent: var(--dark-accent);
+    --border: var(--dark-border);
+}
+
+body[data-theme="light"] {
+    --bg-main: var(--light-bg);
+    --bg-panel: var(--light-panel);
+    --text-main: var(--light-text);
+    --text-secondary: var(--light-secondary);
+    --accent: var(--light-accent);
+    --border: var(--light-border);
+}
+
+/* ============================================================
+   🔧 RESET & BASE
+   ============================================================ */
+
 * {
     margin: 0;
     padding: 0;
+    font-family: var(--font-main);
     box-sizing: border-box;
-    font-family: Consolas, "Courier New", monospace;
-}
-
-:root {
-    /* Paleta principal */
-    --bg-main: #121212;
-    --bg-panel: #1e1e1e;
-    --bg-dark: #000;
-
-    --text-main: #f0f0f0;
-    --text-secondary: #9fa1a3;
-
-    --accent: #00ffff;
-    --accent-soft: rgba(0, 255, 255, 0.3);
-
-    --border: #333;
-    --success: #32ff7e;
-    --danger: #ff5555;
-
-    /* UI tweaks */
-    --radius: 8px;
-    --transition: 0.18s ease;
 }
 
 body {
     background: var(--bg-main);
     color: var(--text-main);
     padding: 25px;
-    line-height: 1.6;
+    transition: background var(--transition), color var(--transition);
 }
 
 /* ============================================================
-   🏷️ TITULOS
+   🏷️ TITULOS PRO
    ============================================================ */
 
 header {
     text-align: center;
     margin-bottom: 25px;
+    animation: fadeIn 0.5s ease-out;
 }
 
 header h1 {
     font-size: 2.7rem;
     color: var(--accent);
-    text-shadow: 0 0 6px var(--accent-soft);
+    letter-spacing: 1px;
+    text-shadow: 0 0 12px rgba(0,255,255,0.4);
 }
 
 .subtitle {
+    margin-top: 5px;
     color: var(--text-secondary);
 }
 
+/* Toggle dark/light */
+.theme-toggle {
+    cursor: pointer;
+    color: var(--accent);
+    margin-top: 15px;
+    font-size: 0.95em;
+    opacity: 0.8;
+    transition: 0.2s;
+}
+.theme-toggle:hover {
+    opacity: 1;
+    text-shadow: 0 0 8px var(--accent);
+}
+
 /* ============================================================
-   🧩 LAYOUT PRINCIPAL
+   📐 LAYOUT PRO
    ============================================================ */
 
 .layout {
@@ -74,182 +115,113 @@ header h1 {
     padding: 20px;
     border-radius: var(--radius);
     border: 1px solid var(--border);
-    box-shadow: 0 0 20px rgba(0,0,0,0.5);
+    backdrop-filter: blur(6px);
+    transition: background var(--transition), border var(--transition);
+    box-shadow: 0 0 18px rgba(0,0,0,0.4);
 }
 
 /* ============================================================
-   🎮 CANVAS + CONTROLES
+   🎮 SIMULADOR CANVAS
    ============================================================ */
-
-.main-visual-area {
-    display: flex;
-    gap: 20px;
-    align-items: flex-start;
-}
-
-.canvas-container {
-    flex-shrink: 0;
-}
 
 #board {
     border: 3px solid var(--accent);
-    background: #2b2b2b;
-    border-radius: 6px;
-    box-shadow: 0 0 12px var(--accent-soft);
-    display: block;
+    background: #222;
+    border-radius: 8px;
+    box-shadow: 0 0 20px rgba(0,255,255,0.25);
+    animation: glowCanvas 6s infinite alternate;
 }
 
-/* === CONTROLES === */
-
-.controls {
-    display: flex;
-    flex-direction: column;
-    gap: 15px;
-    flex-grow: 1;
-}
-
-.controls label {
-    font-weight: bold;
-    display: flex;
-    flex-direction: column;
-}
-
-.controls input,
-.controls select {
-    margin-top: 6px;
-    padding: 10px;
-    border-radius: 5px;
-    border: 1px solid var(--border);
-    background: #2d2d2d;
-    color: var(--text-main);
-    transition: var(--transition);
-}
-
-.controls input:focus,
-.controls select:focus {
-    border-color: var(--accent);
-    box-shadow: 0 0 6px var(--accent-soft);
-    outline: none;
+@keyframes glowCanvas {
+    0% { box-shadow: 0 0 12px rgba(0,255,255,0.2); }
+    100% { box-shadow: 0 0 24px rgba(0,255,255,0.35); }
 }
 
 /* ============================================================
-   🔘 BOTONES
+   🧭 CONTROLES PRO
    ============================================================ */
 
-.btnrow {
-    display: flex;
-    gap: 12px;
-    flex-wrap: wrap;
-    justify-content: space-between;
+.controls select,
+.controls input {
+    padding: 10px;
+    background: rgba(45,45,45,0.75);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text-main);
+    transition: var(--transition);
 }
 
+.controls select:focus,
+.controls input:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 8px var(--accent);
+}
+
+/* ============================================================
+   🔘 BOTONES PRO
+   ============================================================ */
+
 button {
-    padding: 10px 18px;
-    border-radius: 5px;
-    background: #444;
-    color: var(--text-main);
-    border: 1px solid #555;
-    cursor: pointer;
-    transition: var(--transition);
+    padding: 10px 16px;
     font-weight: bold;
-    text-transform: uppercase;
-    flex-grow: 1;
-    min-width: 120px;
+    background: #2e2e2e;
+    color: var(--text-main);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    transition: var(--transition);
+    cursor: pointer;
 }
 
 button:hover {
     background: var(--accent);
-    color: var(--bg-main);
-    border-color: var(--accent);
-    box-shadow: 0 0 10px var(--accent-soft);
+    color: #000;
+    box-shadow: 0 0 10px var(--accent);
 }
 
-/* Botones especiales */
 #btnRun, #btnTrain {
-    background: var(--success);
-    color: var(--bg-main);
+    background: #32ff7e;
+    color: #000;
 }
-#btnRun:hover, #btnTrain:hover {
-    background: #3cff8c;
-    box-shadow: 0 0 10px var(--success);
-}
-
 #btnStopTrain {
-    background: var(--danger);
-}
-#btnStopTrain:hover {
-    background: #ff7777;
-    box-shadow: 0 0 10px var(--danger);
+    background: #ff5555;
+    color: #fff;
 }
 
 /* ============================================================
-   📊 PANEL DERECHO: Q-Table & Logs
+   📊 PANEL DERECHO PRO: Q-table + Log
    ============================================================ */
 
-.right h2 {
-    color: var(--accent);
-    margin-bottom: 12px;
-    border-bottom: 2px solid var(--border);
-    padding-bottom: 4px;
-}
-
-/* Sección de estadísticas */
-.stats p {
-    color: var(--text-secondary);
-}
-.stats span {
-    color: var(--text-main);
-    font-weight: bold;
-}
-
-/* Q-table */
-#kbView {
-    height: 350px;
-    background: var(--bg-dark);
-    color: var(--success);
+#kbView, #log {
+    background: rgba(0,0,0,0.8);
+    border-radius: var(--radius);
+    border: 1px solid var(--accent);
     padding: 12px;
+    font-size: 0.92em;
+    height: 320px;
     overflow: auto;
-    border-radius: var(--radius);
-    border: 1px solid var(--accent);
-    font-family: monospace;
-    white-space: pre;
 }
 
-/* Logs */
-#log {
-    height: 280px;
-    background: var(--bg-dark);
-    color: var(--accent);
-    padding: 12px;
-    overflow-y: auto;
-    border-radius: var(--radius);
-    border: 1px solid var(--accent);
-    font-family: monospace;
-}
-
-#log div {
-    border-bottom: 1px dotted rgba(0,255,255,0.1);
-    padding: 4px 0;
-    font-size: 0.95em;
-}
-#log div:first-child {
+/* Estado colapsable */
+.collapsible {
+    cursor: pointer;
+    padding: 8px 12px;
+    background: var(--accent);
+    color: #000;
+    border-radius: 5px;
     font-weight: bold;
-    color: var(--text-main);
+    transition: 0.25s;
+    margin-bottom: 6px;
 }
-#log div:last-child {
-    border-bottom: none;
+.collapsible:hover {
+    box-shadow: 0 0 8px var(--accent);
 }
-
-/* Separador */
-hr {
-    border: 0;
-    height: 1px;
-    background: var(--border);
-    margin: 20px 0;
+.content-collapsible {
+    display: none;
+    overflow: hidden;
 }
 
 /* ============================================================
-   📱 RESPONSIVO
+   📱 RESPONSIVE
    ============================================================ */
 
 @media (max-width: 1100px) {
@@ -259,8 +231,5 @@ hr {
     .main-visual-area {
         flex-direction: column;
         align-items: center;
-    }
-    .controls {
-        width: 100%;
     }
 }

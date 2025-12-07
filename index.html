@@ -1,24 +1,33 @@
 <!doctype html>
 <html lang="es">
+
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
-    <title>León vs Impala — Simulador Q-Learning</title>
+    <title>León vs Impala — Simulador Q-Learning (PRO)</title>
+
+    <!-- Estilos PRO -->
     <link rel="stylesheet" href="css/styles.css">
 </head>
 
-<body>
+<!-- Tema inicial -->
+<body data-theme="dark">
 
 <header>
     <h1>Simulador: León aprende a cazar un Impala</h1>
-    <p class="subtitle">Visualiza la cacería, entrena al león y revisa su base de conocimiento (Q-table)</p>
+    <p class="subtitle">Dashboard interactivo — Q-Learning, visualización y análisis</p>
+
+    <!-- Toggle de tema -->
+    <div class="theme-toggle" id="themeToggle">
+        Cambiar a modo claro/oscuro 🌗
+    </div>
 </header>
 
 <main class="layout">
 
-    <!-- ===========================
-         PANEL IZQUIERDO (Simulador)
-         =========================== -->
+    <!-- =======================================
+         IZQUIERDA — SIMULADOR (Canvas + Controles)
+         ======================================= -->
     <section class="left">
 
         <div class="main-visual-area">
@@ -68,14 +77,33 @@
                 </div>
 
             </div>
+
         </div>
+<!-- Heatmap controls (pegar dentro de .controls) -->
+<label>
+  Mostrar Heatmap:
+  <button id="btnToggleHeatmap" type="button">Mostrar</button>
+</label>
+
+<label>
+  Acción (heatmap por acción):
+  <select id="heatmapAction">
+    <option value="__max__">Mejor acción (max)</option>
+    <option value="avanzar">avanzar</option>
+    <option value="esconder">esconder</option>
+    <option value="atacar">atacar</option>
+    <option value="esperar">esperar</option>
+  </select>
+</label>
+
     </section>
 
-    <!-- ===========================
-         PANEL DERECHO (Datos / Log)
-         =========================== -->
+    <!-- =======================================
+         DERECHA — PANEL DE INFORMACIÓN (PRO)
+         ======================================= -->
     <section class="right">
 
+        <!-- Estado actual -->
         <h2>📊 Estado Actual</h2>
         <div class="stats">
             <p>Turno: <span id="turn">--</span></p>
@@ -86,31 +114,45 @@
 
         <hr>
 
-        <h2>🧠 Base de Conocimiento (Q-Table)</h2>
+        <!-- Q-Table -->
+        <button class="collapsible">🧠 Q-Table (Base de Conocimiento)</button>
+        <div class="content-collapsible">
 
-        <div class="kbControls">
-            <button id="btnShowKB">Mostrar/Actualizar</button>
-            <button id="btnExplain">Explicar decisión</button>
+            <div class="kbControls">
+                <button id="btnShowKB">Mostrar/Actualizar</button>
+                <button id="btnExplain">Explicar decisión</button>
+            </div>
+
+            <div class="kbControls">
+                <button id="btnSaveKB">Guardar Q-Table</button>
+                <button id="btnLoadKB">Cargar Q-Table</button>
+                <input type="file" id="kbFile" style="display:none">
+            </div>
+
+            <pre id="kbView"></pre>
         </div>
-
-        <div class="kbControls">
-            <button id="btnSaveKB">Guardar Q-Table</button>
-            <button id="btnLoadKB">Cargar Q-Table</button>
-            <input type="file" id="kbFile" style="display:none">
-        </div>
-
-        <pre id="kbView" class="q-table-display"></pre>
 
         <hr>
 
-        <h2>📜 Registro de Eventos</h2>
-        <div id="log" class="log-area"></div>
+        <!-- Log -->
+        <button class="collapsible">📜 Registro de Eventos</button>
+        <div class="content-collapsible">
+            <div class="kbControls">
+                <button id="btnClearLog">Limpiar Log</button>
+            </div>
+
+            <div id="log"></div>
+        </div>
 
     </section>
 
 </main>
 
-<!-- Scripts del simulador -->
+<!-- =======================================================
+     SCRIPTS (Simulador y UI PRO)
+     ======================================================= -->
+
+<!-- Lógica del entorno -->
 <script src="js/env.js"></script>
 <script src="js/impala.js"></script>
 <script src="js/leon.js"></script>
@@ -118,6 +160,35 @@
 <script src="js/knowledge.js"></script>
 <script src="js/ui.js"></script>
 <script src="js/main.js"></script>
+
+<!-- =======================================
+     SCRIPT PRO: Toggle de tema + Paneles colapsables
+     ======================================= -->
+<script>
+/* ---------- 🌗 Toggle Dark/Light Mode ---------- */
+const toggleBtn = document.getElementById("themeToggle");
+toggleBtn.onclick = () => {
+    const body = document.body;
+    const current = body.getAttribute("data-theme");
+    const next = current === "dark" ? "light" : "dark";
+    body.setAttribute("data-theme", next);
+    toggleBtn.textContent = "Cambiar a modo claro/oscuro 🌗";
+};
+
+/* ---------- 📦 Paneles colapsables ---------- */
+document.querySelectorAll(".collapsible").forEach(btn => {
+    btn.addEventListener("click", () => {
+        btn.classList.toggle("active");
+        const content = btn.nextElementSibling;
+        content.style.display = (content.style.display === "block") ? "none" : "block";
+    });
+});
+
+/* ---------- 🧽 Limpiar log ---------- */
+document.getElementById("btnClearLog")?.addEventListener("click", () => {
+    document.getElementById("log").innerHTML = "";
+});
+</script>
 
 </body>
 </html>
