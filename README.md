@@ -62,13 +62,7 @@ Contiene:
 - estructura de la Q-table  
 - algoritmo de actualización  
 - cálculo de recompensas  
-- elección epsilon-greedy  
-
-### ✓ `js/knowledge.js`
-Permite:
-- guardar el conocimiento  
-- cargar qtable.json  
-- mostrar la base de conocimiento en pantalla  
+- elección epsilon-greedy   
 
 ### ✓ `js/ui.js`
 Maneja la interfaz gráfica:
@@ -98,3 +92,4 @@ Inicialmente está vacío:
     "states": [],
     "qvalues": {}
 }
+
