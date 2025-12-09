@@ -1,6 +1,6 @@
 /* env.js — reglas del mundo y utilidades */
 const CELL = 52;               // tamaño del cuadro visual
-const GRID = 9;
+const GRID = 19;
 const CENTER = Math.floor(GRID/2);
 const IMPALA_START = {x:CENTER,y:CENTER};
 const POS_MAP = {
@@ -55,4 +55,5 @@ function pushLog(txt){
     d.textContent = txt; 
     LOG.prepend(d); 
     if(LOG.childElementCount>300) LOG.removeChild(LOG.lastChild); 
+
 }
