@@ -1,84 +1,130 @@
-/* ui.js — render canvas, trayectorias y vista de Q-table */
+/* ui.js — render del canvas + trayectorias */
 
-const canvas = document.getElementById('board');
-const ctx = canvas.getContext('2d');
+const canvas = document.getElementById("board");
+const ctx = canvas.getContext("2d");
 
 function renderQView() {
-  const el = document.getElementById('kbView');
-  if (!el) return;
-  el.textContent = JSON.stringify(QTABLE, null, 2);
+    document.getElementById("kbView").textContent =
+        JSON.stringify(QTABLE, null, 2);
 }
 
-/* drawGrid draws cells, trajectories, impala and lion */
+/* ================================================================
+   TRAJECTORY BUFFERS
+=================================================================*/
+
+let lionTrail = [];
+let impalaTrail = [];
+
+/* Llamado por initState() */
+function resetTrails() {
+    lionTrail = [];
+    impalaTrail = [];
+}
+
+/* ================================================================
+   DIBUJAR LA GRILLA
+=================================================================*/
 function drawGrid(state) {
-  if (!canvas || !ctx) return;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-  ctx.clearRect(0,0,canvas.width,canvas.height);
+    ctx.fillStyle = "#1e1e1e";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-  // background
-  ctx.fillStyle = '#222';
-  ctx.fillRect(0,0,canvas.width,canvas.height);
-
-  // grid
-  ctx.strokeStyle = '#444';
-  for (let r = 0; r < GRID; r++) {
-    for (let c = 0; c < GRID; c++) {
-      ctx.strokeRect(c*CELL+10, r*CELL+10, CELL, CELL);
+    // Grid lines
+    ctx.strokeStyle = "#333";
+    for (let r = 0; r < GRID; r++) {
+        for (let c = 0; c < GRID; c++) {
+            ctx.strokeRect(c * CELL, r * CELL, CELL, CELL);
+        }
     }
-  }
 
-  // draw trajectories (if exist)
-  if (state.pathImpala && state.pathImpala.length) {
-    ctx.strokeStyle = 'rgba(0,200,255,0.6)';
-    ctx.lineWidth = 2;
+    /* ============================================================
+       TRAIL RECORDING
+    ============================================================ */
+
+    // registrar punto del león
+    lionTrail.push({
+        x: state.lion.pos.x * CELL + CELL / 2,
+        y: state.lion.pos.y * CELL + CELL / 2
+    });
+
+    // registrar punto del impala
+    impalaTrail.push({
+        x: state.impala.pos.x * CELL + CELL / 2,
+        y: state.impala.pos.y * CELL + CELL / 2
+    });
+
+    drawTrails();
+
+    /* ============================================================
+       DIBUJAR AGENTES
+    ============================================================ */
+
+    // León
+    drawAgent(
+        state.lion.pos.x,
+        state.lion.pos.y,
+        state.lion.hidden ? "#777" : "#ff4444"
+    );
+
+    // Impala
+    drawAgent(state.impala.pos.x, state.impala.pos.y, "#00ffff");
+}
+
+/* ================================================================
+   DIBUJA LAS TRAYECTORIAS
+=================================================================*/
+function drawTrails() {
+    // Impala trail (cyan)
+    if (impalaTrail.length > 1) {
+        ctx.beginPath();
+        ctx.lineWidth = 2;
+        ctx.strokeStyle = "#00ffff";
+        ctx.moveTo(impalaTrail[0].x, impalaTrail[0].y);
+        for (let i = 1; i < impalaTrail.length; i++) {
+            ctx.lineTo(impalaTrail[i].x, impalaTrail[i].y);
+        }
+        ctx.stroke();
+    }
+
+    // León trail (roja)
+    if (lionTrail.length > 1) {
+        ctx.beginPath();
+        ctx.lineWidth = 2;
+        ctx.strokeStyle = "#ff4444";
+        ctx.moveTo(lionTrail[0].x, lionTrail[0].y);
+        for (let i = 1; i < lionTrail.length; i++) {
+            ctx.lineTo(lionTrail[i].x, lionTrail[i].y);
+        }
+        ctx.stroke();
+    }
+}
+
+/* ================================================================
+   DIBUJA UN AGENTE EN EL TABLERO
+=================================================================*/
+function drawAgent(x, y, color) {
+    const cx = x * CELL + CELL / 2;
+    const cy = y * CELL + CELL / 2;
+
     ctx.beginPath();
-    for (let i = 0; i < state.pathImpala.length; i++) {
-      const p = state.pathImpala[i];
-      const x = p.x*CELL + 10 + CELL/2;
-      const y = p.y*CELL + 10 + CELL/2;
-      if (i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
-    }
-    ctx.stroke();
-  }
+    ctx.fillStyle = color;
+    ctx.arc(cx, cy, CELL * 0.35, 0, Math.PI * 2);
+    ctx.fill();
+}
 
-  if (state.pathLion && state.pathLion.length) {
-    ctx.strokeStyle = 'rgba(255,180,0,0.7)';
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    for (let i = 0; i < state.pathLion.length; i++) {
-      const p = state.pathLion[i];
-      const x = p.x*CELL + 10 + CELL/2;
-      const y = p.y*CELL + 10 + CELL/2;
-      if (i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
-    }
-    ctx.stroke();
-  }
+/* ================================================================
+   LOG SYSTEM
+=================================================================*/
 
-  // impala
-  const imp = state.impala.pos;
-  const ix = imp.x*CELL + 10 + CELL/2;
-  const iy = imp.y*CELL + 10 + CELL/2;
-  ctx.beginPath();
-  ctx.fillStyle = state.impala.fleeing ? '#55ddff' : '#ffeeaa';
-  ctx.arc(ix, iy, CELL*0.28, 0, Math.PI*2);
-  ctx.fill();
-  ctx.strokeStyle = '#000';
-  ctx.stroke();
+let LOG = null;
 
-  // lion
-  const lion = state.lion.pos;
-  const lx = lion.x*CELL + 10 + CELL/2;
-  const ly = lion.y*CELL + 10 + CELL/2;
-  ctx.beginPath();
-  ctx.fillStyle = state.lion.hidden ? '#6c8c59' : '#cc5533';
-  ctx.arc(lx, ly, CELL*0.28, 0, Math.PI*2);
-  ctx.fill();
-  ctx.strokeStyle = '#000';
-  ctx.stroke();
+function initLogElement() {
+    LOG = document.getElementById("log");
+}
 
-  // optionally mark start points
-  // draw impala start
-  const s = IMPALA_START;
-  ctx.fillStyle = 'rgba(255,255,255,0.06)';
-  ctx.fillRect(s.x*CELL+10, s.y*CELL+10, CELL, CELL);
+function pushLog(msg) {
+    const div = document.createElement("div");
+    div.textContent = msg;
+    LOG.prepend(div);
 }
