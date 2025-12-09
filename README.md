@@ -64,12 +64,6 @@ Contiene:
 - cálculo de recompensas  
 - elección epsilon-greedy  
 
-### ✓ `js/knowledge.js`
-Permite:
-- guardar el conocimiento  
-- cargar qtable.json  
-- mostrar la base de conocimiento en pantalla  
-
 ### ✓ `js/ui.js`
 Maneja la interfaz gráfica:
 - logs  
@@ -98,3 +92,4 @@ Inicialmente está vacío:
     "states": [],
     "qvalues": {}
 }
+
