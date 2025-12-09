@@ -1,59 +1,42 @@
-/* env.js — reglas del mundo y utilidades */
-const CELL = 52;               // tamaño del cuadro visual
-const GRID = 19;
-const CENTER = Math.floor(GRID/2);
-const IMPALA_START = {x:CENTER,y:CENTER};
+/* env.js — constantes globales y utilidades UI básicas */
+
+const GRID = 19;             // tablero 19x19
+const CELL = 26;             // tamaño visual por celda (ajustable)
 const POS_MAP = {
-  1: {x:CENTER, y:CENTER-2},
-  2: {x:CENTER+1, y:CENTER-1},
-  3: {x:CENTER+2, y:CENTER},
-  4: {x:CENTER+1, y:CENTER+1},
-  5: {x:CENTER, y:CENTER+2},
-  6: {x:CENTER-1, y:CENTER+1},
-  7: {x:CENTER-2, y:CENTER},
-  8: {x:CENTER-1, y:CENTER-1}
+  1: { x: 0,  y: 9  }, // (1,10)
+  2: { x: 0,  y: 18 }, // (1,19)
+  3: { x: 9,  y: 18 }, // (10,19)
+  4: { x: 18, y: 18 }, // (19,19)
+  5: { x: 18, y: 9  }, // (19,10)
+  6: { x: 18, y: 0  }, // (19,1)
+  7: { x: 9,  y: 0  }, // (10,1)
+  8: { x: 0,  y: 0  }  // (1,1)
 };
+const IMPALA_START = { x: 9, y: 9 }; // (10,10) -> 0-based
 
-function euclid(a,b){ return Math.hypot(a.x-b.x,a.y-b.y); }
-// reemplazar la función distBucket existente por esta
-function distBucket(d){
-  if(d <= 0) return 0;
-  if(d < 1.5) return 1;
-  if(d < 3) return 2;
-  if(d < 5) return 3;
-  return 4; // muy lejos
+// actions (kept also in qlearning.js but handy here)
+const LION_ACTIONS = ['avanzar','esconder','atacar','esperar'];
+const IMPALA_ACTIONS = ['ver_frente','ver_izq','ver_der','beber','huir'];
+
+// small helper: distance buckets for state abstraction
+function distBucket(d) {
+  if (d <= 1) return 'd0-1';
+  if (d <= 3) return 'd2-3';
+  if (d <= 6) return 'd4-6';
+  return 'd7+';
 }
 
-
-// angulo relativo de impala mirando norte
-function angleDeg(from, to){
-  const dx = to.x - from.x; const dy = to.y - from.y;
-  return Math.atan2(dy, dx) * 180/Math.PI; // degrees from +x
+/* Logging UI helpers (simple) */
+function initLogElement() {
+  // ensure log exists
+  if (!document.getElementById('log')) return;
+  document.getElementById('log').innerHTML = '';
 }
-
-function withinGrid(pos){ return pos.x>=0 && pos.x<GRID && pos.y>=0 && pos.y<GRID }
-
-
-// --- Lógica del Log (Movida aquí para disponibilidad temprana) ---
-let LOG; 
-
-/**
- * Inicializa la referencia al elemento LOG del DOM.
- * Debe llamarse desde main.js al inicio.
- */
-function initLogElement(){
-    LOG = document.getElementById('log');
-}
-
-/**
- * Agrega un mensaje al registro (Log).
- */
-function pushLog(txt){ 
-    if (!LOG) return; // Evita errores si no se ha inicializado
-    
-    const d = document.createElement('div'); 
-    d.textContent = txt; 
-    LOG.prepend(d); 
-    if(LOG.childElementCount>300) LOG.removeChild(LOG.lastChild); 
-
+function pushLog(msg) {
+  const el = document.getElementById('log');
+  if (!el) return;
+  const d = document.createElement('div');
+  const t = new Date().toLocaleTimeString();
+  d.textContent = `[${t}] ${msg}`;
+  el.prepend(d);
 }

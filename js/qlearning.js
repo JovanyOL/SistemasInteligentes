@@ -1,92 +1,85 @@
-/* qlearning.js — Q-table y algoritmo ε-greedy optimizado */
+/* qlearning.js — Q-table, ε-greedy, persistencia y utilidades */
+
 const Q_ACTIONS = ['avanzar','esconder','atacar','esperar'];
 let QTABLE = {}; // key -> { action: value }
 
-// parámetros
-let EPS = 0.3;
+// hyperparams (ajustables)
+let EPS = 0.25;     // exploración inicial
 const MIN_EPS = 0.01;
-const EPS_DECAY = 0.999;
-
+const EPS_DECAY = 0.9998;
 const ALPHA = 0.25;
-const GAMMA = 0.8;
+const GAMMA = 0.85;
 
-// normaliza posición para reducir estados (MEJORA GRANDE)
-function normalizePos(p){
-  if(p==1 || p==5) return 'vert';
-  if(p==3 || p==7) return 'horiz';
-  return 'diag';
+function qKeyFromObs(obs) {
+  // obs: { posNum, impalaAction, distBucket, hidden, attacking }
+  return `${obs.posNum}|${obs.impalaAction}|${obs.distBucket}|${obs.hidden?1:0}|${obs.attacking?1:0}`;
 }
 
-// normaliza acción del impala
-function normalizeImpalaAction(a){
-  if(a === 'ver_izq' || a==='ver_der') return 'ver_lateral';
-  if(a === 'ver_frente') return 'ver_frente';
-  if(a === 'beber') return 'beber';
-  if(a.startsWith('huir')) return 'huir';
-  return 'otro';
-}
-
-function qKeyFromObs(obs){
-  const pos = normalizePos(obs.posNum);
-  const imp = normalizeImpalaAction(obs.impalaAction);
-  const d   = obs.distBucket;
-  const h   = obs.hidden ? 1 : 0;
-  return `${pos}|${imp}|${d}|${h}`;
-}
-
-function ensureQ(key){
-  if(!QTABLE[key]){
+function ensureQ(key) {
+  if (!QTABLE[key]) {
     QTABLE[key] = {};
-    Q_ACTIONS.forEach(a=>QTABLE[key][a] = 0);
+    Q_ACTIONS.forEach(a => QTABLE[key][a] = 0);
   }
 }
 
-function chooseActionQ(obs){
+function chooseActionQ(obs) {
   const key = qKeyFromObs(obs);
   ensureQ(key);
-
-  // epsilon-greedy
-  if(Math.random() < EPS){
-    return Q_ACTIONS[Math.floor(Math.random()*Q_ACTIONS.length)];
+  if (Math.random() < EPS) {
+    // explorar (aleatorio)
+    return Q_ACTIONS[Math.floor(Math.random() * Q_ACTIONS.length)];
   }
-
-  // max Q
-  let best = null, bestV = -Infinity;
-  for(const a of Q_ACTIONS){
-    if(QTABLE[key][a] > bestV){
-      bestV = QTABLE[key][a];
-      best = a;
-    }
+  // explotar (mejor acción; si empate, aleatorio entre mejores)
+  let bestV = -Infinity;
+  let bestActs = [];
+  for (const a of Q_ACTIONS) {
+    const v = QTABLE[key][a];
+    if (v > bestV) { bestV = v; bestActs = [a]; }
+    else if (v === bestV) bestActs.push(a);
   }
-  return best;
+  return bestActs[Math.floor(Math.random() * bestActs.length)];
 }
 
-function updateQ(obs, action, reward, nextObs){
+function updateQ(obs, action, reward, nextObs) {
   const k = qKeyFromObs(obs);
   ensureQ(k);
-
+  const q = QTABLE[k][action];
   let maxNext = 0;
-  if(nextObs){
+  if (nextObs) {
     const kn = qKeyFromObs(nextObs);
     ensureQ(kn);
     maxNext = Math.max(...Object.values(QTABLE[kn]));
   }
+  const newQ = q + ALPHA * (reward + GAMMA * maxNext - q);
+  QTABLE[k][action] = newQ;
+}
 
-  // update
-  const old = QTABLE[k][action];
-  const target = reward + GAMMA * maxNext;
-  let updated = old + ALPHA * (target - old);
-
-  // clamping para estabilidad
-  updated = Math.max(-500, Math.min(500, updated));
-
-  QTABLE[k][action] = updated;
-
-  // decaimiento epsilon
+function decayEpsilon() {
   EPS = Math.max(MIN_EPS, EPS * EPS_DECAY);
 }
 
-function saveQToLocal(){ localStorage.setItem('qtable', JSON.stringify(QTABLE)); }
-function loadQFromLocal(){ const s = localStorage.getItem('qtable'); if(s) QTABLE = JSON.parse(s) || {}; }
-function downloadQ(){ const blob = new Blob([JSON.stringify(QTABLE,null,2)],{type:'application/json'}); const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download='qtable.json'; a.click(); URL.revokeObjectURL(url); }
-function loadQFromFile(json){ QTABLE = json || {}; }
+/* persistence */
+function saveQToLocal() {
+  try { localStorage.setItem('qtable', JSON.stringify(QTABLE)); pushLog('Q-table guardada en local.'); }
+  catch (e) { pushLog('Error guardando Q-table: ' + e.message); }
+}
+function loadQFromLocal() {
+  try {
+    const s = localStorage.getItem('qtable');
+    if (s) QTABLE = JSON.parse(s) || {};
+    else QTABLE = {};
+    pushLog('Q-table cargada desde local (si existía).');
+  } catch (e) { QTABLE = {}; pushLog('Error cargando Q-table: '+e.message); }
+}
+function downloadQ() {
+  const data = JSON.stringify(QTABLE, null, 2);
+  const blob = new Blob([data], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'qtable.json'; a.click();
+  URL.revokeObjectURL(url);
+}
+function loadQFromFile(json) {
+  QTABLE = json || {};
+  pushLog('Q-table cargada desde archivo.');
+}
