@@ -1,25 +1,20 @@
-/* main.js — conecta todo y contiene loop principal */
+/* ================================
+   main.js – Simulador Q-Learning
+   con terminación correcta
+   ================================ */
+
+/* CONFIGURACIÓN */
+const MAX_STEPS_PER_EPISODE = 500;
+
+/* ESTADO GLOBAL */
 let state = {};
-
-// =================== CONFIGURACIÓN PRINCIPAL ===================
-const GRID = 19;
-const CELL = 25;
-
-let EPSILON = 0.2;
-const MIN_EPSILON = 0.01;
-const EPSILON_DECAY = 0.9995;
-
-// Recompensas
-const R_EXITO = +100;
-const R_FRACASO = -100;
-const R_PASO = -1;
-
-// ================================================================
 let TRAIN_ABORT = false;
+let training = false;
+let HUNT_OVER = false;   // <— NUEVO: controla fin de cacería
 
-/* ================================================================
-   INICIALIZACIÓN DEL ESTADO
-=================================================================*/
+/* ================================
+   INICIALIZAR ESTADO
+   ================================ */
 function initState(startPosOption) {
     let posNum;
 
@@ -31,289 +26,252 @@ function initState(startPosOption) {
     }
 
     state = {
-        lion: { 
-            pos: { ...POS_MAP[posNum] }, 
-            hidden: false, 
-            attacking: false, 
-            posNum: posNum 
-        },
-
-        impala: { 
-            pos: { ...IMPALA_START }, 
-            fleeing: false, 
-            fleeDir: null, 
-            fleeVel: 1 
-        },
-
+        lion: { pos: { ...POS_MAP[posNum] }, hidden: false, attacking: false, attackLocked: false },
+        impala: { pos: { ...IMPALA_START }, fleeing: false, fleeDir: null, fleeVel: 1, fleeSteps: 0 },
         time: 1,
         lastImpala: null,
         lastLion: null,
         running: false,
-
-        terminated: false   // ← NUEVO: marca fin de la cacería
+        fastMode: false
     };
 
-    document.getElementById('turn').textContent = state.time;
-    document.getElementById('status').textContent = 'Listo';
-    document.getElementById('lastImpala').textContent = '-';
-    document.getElementById('lastLion').textContent = '-';
-    document.getElementById('log').innerHTML = '';
+    HUNT_OVER = false;   // <— reinicia finalización
+    resetTrails();       // <— reinicia trazos
 
+    /* UI */
+    document.getElementById("turn").textContent = state.time;
+    document.getElementById("status").textContent = "Listo";
+    document.getElementById("lastImpala").textContent = "-";
+    document.getElementById("lastLion").textContent = "-";
+    document.getElementById("log").innerHTML = "";
+
+    drawGrid(state);
+    renderQView();
+}
+
+
+/* ================================
+   DETECCIÓN DE FIN DE CACERÍA
+   ================================ */
+
+function endHunt(reason) {
+    HUNT_OVER = true;
+    document.getElementById("status").textContent = reason;
+    pushLog("🏁 Cacería finalizada: " + reason);
+    renderQView();
     drawGrid(state);
 }
 
-/* ================================================================
-   EJECUTAR UN T
-=================================================================*/
+
+/* ================================
+   LÓGICA DE UN PASO (T)
+   ================================ */
 function stepOnce() {
-
-    // No avanzar si está corriendo automático
     if (state.running) return false;
-
-    // 🚫 Bloquear si la cacería ya terminó
-    if (state.terminated) {
-        pushLog("⚠️ La cacería ya terminó. Reinicia para continuar.");
+    if (HUNT_OVER) {
+        pushLog("⚠️ La cacería ya terminó. Usa RESET para iniciar otra.");
         return false;
     }
 
-    /* ---------------- IMPALA MUEVE PRIMERO ---------------- */
-
-    const impalaMode = document.getElementById('impalaMode').value;
-    let impAction;
-
-    if (state.impala.fleeing) {
-        impAction = 'huir';
-    } else if (impalaMode === 'aleatorio') {
-        impAction = IMPALA_ACTIONS[Math.floor(Math.random() * IMPALA_ACTIONS.length)];
-    } else {
-        const seq = document.getElementById('progSeq').value
-            .split(',')
-            .map(s => s.trim())
-            .filter(s => s);
-        impAction = seq.length === 0 ? 'ver_frente' : seq[(state.time - 1) % seq.length];
-    }
-
+    /* ————————————————
+       1) Acción del Impala
+       ———————————————— */
+    const impAction = getImpalaAction();
     const impalaWasFleeing = state.impala.fleeing;
 
     impalaStep(state, impAction);
     state.lastImpala = impAction;
 
-    pushLog(`T=${state.time}: Impala → ${impAction}`);
+    /* ————————————————
+       Detectar si llega al borde → fracaso
+       ———————————————— */
+    if (state.impala.pos.x <= 0 || state.impala.pos.x >= GRID - 1) {
+        endHunt("Fracaso (el impala escapó del tablero)");
+        return true;
+    }
 
-    /* ---------------- OBSERVACIÓN DEL LEÓN ---------------- */
-
+    /* ————————————————
+       Observar estado actual
+       ———————————————— */
     const lp = state.lion.pos;
-    const d = euclid(lp, state.impala.pos);
+    const d = manhattan(lp, state.impala.pos);
 
     const obs = {
         posNum: getPosNumFromCoords(lp),
-        impalaAction: state.impala.fleeing ? 'huir' : impAction,
+        impalaAction: state.impala.fleeing ? "huir" : impAction,
         distBucket: distBucket(d),
         hidden: state.lion.hidden
     };
 
-    /* ---------------- LEÓN ELIGE ACCIÓN ---------------- */
-
+    /* ————————————————
+       2) Elegir acción del León
+       ———————————————— */
     const lionAction = chooseActionQ(obs);
     state.lastLion = lionAction;
 
-    pushLog(`T=${state.time}: León → ${lionAction}`);
+    /* ————————————————
+       3) Aplicar acción del león
+       ———————————————— */
+    applyLionAction(lionAction, d);
 
-    /* ---------------- LEÓN ACTÚA ---------------- */
+    /* ————————————————
+       4) Impala huye si detecta peligro
+       ———————————————— */
+    const fleeTriggeredByLion = checkAndTriggerImpalaFlee(lionAction, impAction, d);
 
-    if (lionAction === 'avanzar') {
-        lionAdvanceTowardsImpala(state);
-        state.lion.hidden = false;
-    } 
-    else if (lionAction === 'esconder') {
-        state.lion.hidden = true;
-    } 
-    else if (lionAction === 'atacar') {
-        state.lion.attacking = true;
-        lionAdvanceTowardsImpala(state);
-        lionAdvanceTowardsImpala(state); // velocidad = 2
-    }
+    /* ————————————————
+       5) Éxito total (león captura)
+       ———————————————— */
+    const reached = (
+        state.lion.pos.x === state.impala.pos.x &&
+        state.lion.pos.y === state.impala.pos.y
+    );
 
-    /* ---------------- DETECTAR HUIDA DETONADA POR EL LEÓN ---------------- */
-
-    let fleeTriggeredByLion = false;
-
-    if (!state.impala.fleeing) {
-        const sees = impalaSees(state, state.lion.pos, impAction);
-        if (sees || lionAction === 'atacar' || d < 3) {
-            state.impala.fleeing = true;
-            state.impala.fleeDir = (state.impala.pos.x <= state.lion.pos.x) ? 'E' : 'W';
-            state.impala.fleeVel = 1;
-            fleeTriggeredByLion = true;
-        }
-    }
-
-    /* ---------------- CONDICIONES DE TERMINACIÓN ---------------- */
-
-    // 1) ÉXITO: león alcanza al impala
-    if (lp.x === state.impala.pos.x && lp.y === state.impala.pos.y) {
-        updateQ(obs, lionAction, R_EXITO, null);
-        state.terminated = true;
-
-        pushLog(`T=${state.time}: 🦁 ÉXITO → el león atrapó al impala.`);
-        document.getElementById('status').textContent = 'Éxito';
-        renderQView();
-        drawGrid(state);
-
+    if (reached) {
+        computeRewardAndUpdateQ(obs, lionAction, null, d, 0, true, "exito");
+        endHunt("Éxito");
         return true;
     }
 
-    // 2) FRACASO: impala entra en huida por culpa del león
+    /* ————————————————
+       6) HUÍDA del impala → fracaso
+       ———————————————— */
     if (state.impala.fleeing && !impalaWasFleeing) {
-
-        // Si huida fue detonada por el león → fracaso real
         if (fleeTriggeredByLion) {
-            updateQ(obs, lionAction, R_FRACASO, null);
-            state.terminated = true;
-
-            pushLog(`T=${state.time}: ❌ FRACASO → el impala huyó por culpa del león.`);
-            document.getElementById('status').textContent = 'Fracaso';
-            renderQView();
-            drawGrid(state);
-
+            computeRewardAndUpdateQ(obs, lionAction, null, d, d, true, "fracaso");
+            endHunt("Fracaso (impala huyó por culpa del león)");
+            return true;
+        } else {
+            endHunt("Huida espontánea (no penalizada)");
             return true;
         }
     }
 
-    // 3) FRACASO por escapar del tablero (borde)
-    if (state.impala.pos.x <= 0 || state.impala.pos.x >= GRID - 1) {
-        updateQ(obs, lionAction, R_FRACASO, null);
-        state.terminated = true;
-
-        pushLog(`T=${state.time}: ❌ FRACASO → el impala escapó del tablero.`);
-        document.getElementById('status').textContent = 'Fracaso (escape)';
-        renderQView();
-        drawGrid(state);
-
-        return true;
-    }
-
-    /* ---------------- APRENDIZAJE EN ESTADO NO TERMINAL ---------------- */
-
+    /* ————————————————
+       7) Reward shaping normal
+       ———————————————— */
     const lp2 = state.lion.pos;
-    const d2 = euclid(lp2, state.impala.pos);
+    const d2 = manhattan(lp2, state.impala.pos);
 
     const nextObs = {
         posNum: getPosNumFromCoords(lp2),
-        impalaAction: state.impala.fleeing ? 'huir' : impAction,
+        impalaAction: state.impala.fleeing ? "huir" : impAction,
         distBucket: distBucket(d2),
         hidden: state.lion.hidden
     };
 
-    updateQ(obs, lionAction, R_PASO, nextObs);
+    computeRewardAndUpdateQ(obs, lionAction, nextObs, d, d2, false, null);
 
-    /* ---------------- ACTUALIZACIÓN DEL T ---------------- */
-    state.time += 1;
-    document.getElementById('turn').textContent = state.time;
-    document.getElementById('status').textContent = 'En curso';
-    renderQView();
-    drawGrid(state);
+    /* ————————————————
+       8) Tiempo y dibujo
+       ———————————————— */
+    state.time++;
+    if (!state.fastMode) {
+        document.getElementById("turn").textContent = state.time;
+        drawGrid(state);
+        renderQView();
+    }
 
     return false;
 }
 
-/* ================================================================
-   ENTRENAMIENTO AUTOMÁTICO
-=================================================================*/
-let training = false;
 
-async function trainN(n) {
+/* ================================
+   ENTRENAMIENTO MASIVO
+   ================================ */
+async function trainN(n, starts = [1,2,3,4,6,7,8]) {
     TRAIN_ABORT = false;
-    training = true;
+    state.fastMode = true;
 
-    document.getElementById('btnStopTrain').style.display = 'inline-block';
-    pushLog(`Entrenamiento: ${n} episodios.`);
+    pushLog(`Entrenando ${n} episodios…`);
 
     for (let i = 0; i < n; i++) {
         if (TRAIN_ABORT) break;
-        initState(document.getElementById('startPos').value);
+
+        initState(starts[Math.floor(Math.random() * starts.length)]);
 
         let iter = 0;
-        while (iter < 500) {
+        while (iter < MAX_STEPS_PER_EPISODE && !HUNT_OVER) {
             iter++;
-            const done = stepOnce();
-            if (done) break;
+            stepOnce();
         }
 
-        if (i % 50 === 0) {
-            await new Promise(r => setTimeout(r, 0));
-        }
+        if (i % 100 === 0) await new Promise(r => setTimeout(r, 0));
     }
 
-    training = false;
-    document.getElementById('btnStopTrain').style.display = 'none';
+    state.fastMode = false;
     saveQToLocal();
-    pushLog('Entrenamiento finalizado.');
     renderQView();
+    drawGrid(state);
+
+    pushLog("Entrenamiento finalizado.");
 }
 
-/* ================================================================
-   UI HOOKS
-=================================================================*/
-document.getElementById('btnReset').addEventListener('click', () => {
-    initState(document.getElementById('startPos').value);
-    pushLog('Estado reiniciado.');
+
+/* ================================
+   EVENTOS UI
+   ================================ */
+
+document.getElementById("btnReset").addEventListener("click", () => {
+    HUNT_OVER = false;
+    initState(document.getElementById("startPos").value);
+    pushLog("🔄 Estado reiniciado.");
 });
 
-document.getElementById('btnTrain').addEventListener('click', () => {
-    trainN(1000);
-});
-
-document.getElementById('btnStopTrain').addEventListener('click', () => {
-    TRAIN_ABORT = true;
-    pushLog('Solicitud de detención recibida.');
-});
-
-document.getElementById('btnStep').addEventListener('click', () => {
+document.getElementById("btnStep").addEventListener("click", () => {
+    if (HUNT_OVER) {
+        pushLog("⚠️ La cacería ya terminó. Usa RESET para comenzar otra.");
+        return;
+    }
     stepOnce();
 });
 
-document.getElementById('btnShowKB').addEventListener('click', () => {
+document.getElementById("btnTrain").addEventListener("click", () => {
+    trainN(1000, [1,2,3,4,6,7,8]);
+});
+
+document.getElementById("btnStopTrain").addEventListener("click", () => {
+    TRAIN_ABORT = true;
+    pushLog("Detención solicitada.");
+});
+
+document.getElementById("btnShowKB").addEventListener("click", () => {
     renderQView();
-    pushLog('Mostrando Q-table.');
+    pushLog("Mostrando Q-table.");
 });
 
-document.getElementById('btnSaveKB').addEventListener('click', () => {
+document.getElementById("btnSaveKB").addEventListener("click", () => {
     downloadQ();
-    pushLog('Descargando Q-table...');
+    pushLog("Q-table guardada.");
 });
 
-document.getElementById('btnLoadKB').addEventListener('click', () => {
-    document.getElementById('kbFile').click();
+document.getElementById("btnLoadKB").addEventListener("click", () => {
+    document.getElementById("kbFile").click();
 });
 
-document.getElementById('kbFile').addEventListener('change', e => {
+document.getElementById("kbFile").addEventListener("change", e => {
     const f = e.target.files[0];
     if (!f) return;
-
     const r = new FileReader();
     r.onload = () => {
         try {
             const j = JSON.parse(r.result);
             loadQFromFile(j);
             renderQView();
-            pushLog('Q-table cargada desde archivo.');
+            pushLog("Q-table cargada.");
         } catch (err) {
-            pushLog('Error cargando Q-table: ' + err.message);
+            pushLog("Error cargando Q-table: " + err.message);
         }
     };
     r.readAsText(f);
 });
 
-document.getElementById('impalaMode').addEventListener('change', e => {
-    document.getElementById('progLabel').style.display =
-        e.target.value === 'programado' ? 'block' : 'none';
-});
-
-/* ================================================================
-   INICIO AUTOMÁTICO
-=================================================================*/
+/* ================================
+   INICIO
+   ================================ */
 loadQFromLocal();
 initLogElement();
-initState('rand');
+initState("rand");
 renderQView();
+drawGrid(state);
+
