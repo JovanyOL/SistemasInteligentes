@@ -1,4 +1,4 @@
-/* main.js — integración completa + descripción de movimiento del león + bloqueo de botón Step */
+/* main.js — integración completa: initState, step, train, UI hooks (reconstruido) */
 
 const R_EXITO = +100;
 const R_FRACASO = -100;
@@ -12,17 +12,6 @@ let training = false;
 
 /* helper */
 function manhattan(a,b){ return Math.abs(a.x-b.x)+Math.abs(a.y-b.y); }
-
-/* ============================================
-   NUEVO: descripción legible para el usuario
-============================================ */
-function describeLionAction(action, state) {
-  if (state.lion.mode === "attacking") return "Ataca (velocidad 2 celdas/T)";
-  if (action === "avanzar") return "Avanza hacia el impala";
-  if (action === "esconder") return "Se esconde";
-  if (action === "esperar") return "Espera";
-  return action;
-}
 
 /* initState builds the full state including path arrays and stores startPosNum */
 function initState(startPosOption) {
@@ -56,7 +45,7 @@ function initState(startPosOption) {
     lastLion: null,
     running: false,
     fastMode: false,
-    pathLion: [{ ...POS_MAP[posNum] }],
+    pathLion: [{ ...POS_MAP[posNum] }],      // start path with initial pos
     pathImpala: [{ ...IMPALA_START }]
   };
 
@@ -65,9 +54,6 @@ function initState(startPosOption) {
   document.getElementById('lastImpala').textContent = '-';
   document.getElementById('lastLion').textContent = '-';
   document.getElementById('log').innerHTML = '';
-
-  // habilitamos nuevamente el botón Step
-  document.getElementById('btnStep').disabled = false;
 
   drawGrid(state);
   renderQView();
@@ -91,22 +77,11 @@ function makeObs() {
   return { posNum: posNum, impalaAction: impAct, distBucket: distBucket(d), hidden: state.lion.hidden, attacking: state.lion.mode==='attacking' };
 }
 
-/* ============================================
-   NUEVO: finaliza episodio + bloquea botón Step
-============================================ */
-function endEpisode(message, statusText) {
-  pushLog(message);
-  document.getElementById('status').textContent = statusText;
-  renderQView();
-  drawGrid(state);
-  document.getElementById('btnStep').disabled = true;   // ← BLOQUEO
-}
-
 /* step once: impala acts, then lion reacts (Q), update Q accordingly */
 function stepOnce() {
   if (state.running) return false;
 
-  // 1) impala action
+  // 1) impala action and move if necessary
   const impAction = getImpalaAction();
   state.impala.lastAction = impAction;
   impalaStep(state, impAction);
@@ -121,18 +96,12 @@ function stepOnce() {
   const lionAction = chooseActionQ(obs);
   state.lastLion = lionAction;
 
-  // ============================================
-  // NUEVO: mostrar texto bonito para el usuario
-  // ============================================
-  const pretty = describeLionAction(lionAction, state);
-  document.getElementById('lastLion').textContent = pretty;
-  pushLog(`León: ${pretty}`);
-
   // apply lion action
   if (state.lion.mode === 'attacking') {
     lionAttackStep(state);
   } else {
     if (lionAction === 'atacar') {
+      // once switch to attack, irreversible for the episode
       state.lion.mode = 'attacking';
       lionAttackStep(state);
     } else if (lionAction === 'avanzar') {
@@ -141,49 +110,61 @@ function stepOnce() {
       if (state.lion.startPosNum === 5) state.lion.hasAdvanced = true;
     } else if (lionAction === 'esconder') {
       state.lion.hidden = true;
+    } else if (lionAction === 'esperar') {
+      // noop
     }
   }
   state.pathLion.push({ x: state.lion.pos.x, y: state.lion.pos.y });
 
-  // flee triggers
+  // check triggers for impala flee
   const sees = impalaSees(state, state.lion.pos, state.impala.lastAction);
   const attackTriggered = (lionAction==='atacar' || state.lion.mode==='attacking');
   const close = dBefore < 3;
 
+  // If impala wasn't fleeing but now should start (attack, close or sees)
   if (!state.impala.fleeing && (attackTriggered || close || sees)) {
+    // start flee and check immediate failure clause: if impala first speed >= lion speed => immediate failure
     startImpalaFlee(state);
     const lionSpeed = (state.lion.mode === 'attacking') ? 2 : 1;
     const impFirstSpeed = state.impala.fleeVel || 1;
-
     if (impFirstSpeed >= lionSpeed) {
-      updateQ(obs, lionAction, R_FRACASO, null);
-      endEpisode(`T=${state.time}: Fracaso inmediato (Impala más rápido).`, "Fracaso inmediato");
+      // update q with failure
+      const nextObs = null;
+      updateQ(obs, lionAction, R_FRACASO, nextObs);
+      pushLog(`T=${state.time}: Fracaso inmediato (impala alcanza velocidad >= león).`);
+      document.getElementById('status').textContent = 'Fracaso (immediate)';
+      drawGrid(state); renderQView();
       return true;
     }
+    // otherwise, continue until impala reaches edge or lion catches
     pushLog(`T=${state.time}: Impala inicia huida.`);
   }
 
-  // capture
+  // check capture
   const reached = (state.lion.pos.x === state.impala.pos.x && state.lion.pos.y === state.impala.pos.y);
   if (reached) {
     updateQ(obs, lionAction, R_EXITO, null);
-    endEpisode(`T=${state.time}: Éxito — impala capturado.`, "Éxito");
+    pushLog(`T=${state.time}: Éxito — impala capturado.`);
+    document.getElementById('status').textContent = 'Éxito';
+    drawGrid(state); renderQView();
     return true;
   }
 
-  // update Q normal
+  // compute nextObs and update Q for non-terminal
   const dAfter = manhattan(state.lion.pos, state.impala.pos);
   const nextObs = makeObs();
   updateQ(obs, lionAction, (dAfter<dBefore? R_PASO+R_ACERCARSE: R_PASO - (dAfter>dBefore? Math.abs(R_ACERCARSE):0)), nextObs);
 
-  // impala escapes by reaching edge
+  // check if impala reached edge (escape)
   if (state.impala.fleeing && (state.impala.pos.x === 0 || state.impala.pos.x === GRID-1)) {
     updateQ(obs, lionAction, R_FRACASO, null);
-    endEpisode(`T=${state.time}: Fracaso — impala escapó al borde.`, "Fracaso (escape)");
+    pushLog(`T=${state.time}: Fracaso — impala escapó al borde.`);
+    document.getElementById('status').textContent = 'Fracaso (escape)';
+    drawGrid(state); renderQView();
     return true;
   }
 
-  // normal step
+  // normal step advance
   state.time += 1;
   document.getElementById('turn').textContent = state.time;
   document.getElementById('status').textContent = 'En curso';
@@ -240,19 +221,7 @@ document.getElementById('btnExplain').addEventListener('click', ()=>{
 
 document.getElementById('btnSaveKB').addEventListener('click', ()=>{ downloadQ(); });
 document.getElementById('btnLoadKB').addEventListener('click', ()=>{ document.getElementById('kbFile').click(); });
-document.getElementById('kbFile').addEventListener('change', (e)=>{ 
-  const f=e.target.files[0]; 
-  if(!f) return; 
-  const r=new FileReader(); 
-  r.onload=()=>{ 
-    try{ 
-      loadQFromFile(JSON.parse(r.result)); 
-      renderQView(); 
-      pushLog('Q-table cargada.'); 
-    }catch(err){ pushLog('Error: '+err.message);} 
-  }; 
-  r.readAsText(f); 
-});
+document.getElementById('kbFile').addEventListener('change', (e)=>{ const f=e.target.files[0]; if(!f) return; const r=new FileReader(); r.onload=()=>{ try{ loadQFromFile(JSON.parse(r.result)); renderQView(); pushLog('Q-table cargada.'); }catch(err){ pushLog('Error: '+err.message);} }; r.readAsText(f); });
 
 /* init */
 loadQFromLocal();
