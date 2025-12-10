@@ -1,0 +1,235 @@
+/* ============================================================
+   🌗 THEME PRO — Dark / Light Mode con Animación
+   ============================================================ */
+
+:root {
+    --font-main: 'Consolas', 'Courier New', monospace;
+
+    /* Paleta modo oscuro */
+    --dark-bg: #0f0f0f;
+    --dark-panel: #181818;
+    --dark-text: #e6e6e6;
+    --dark-secondary: #9ba1a7;
+    --dark-accent: #00eaff;
+    --dark-border: #262626;
+
+    /* Paleta modo claro */
+    --light-bg: #f7f7f7;
+    --light-panel: #ffffff;
+    --light-text: #151515;
+    --light-secondary: #575757;
+    --light-accent: #0094b3;
+    --light-border: #cfcfcf;
+
+    --radius: 12px;
+    --transition: 0.20s ease;
+}
+
+/* Paleta activa */
+body[data-theme="dark"] {
+    --bg-main: var(--dark-bg);
+    --bg-panel: var(--dark-panel);
+    --text-main: var(--dark-text);
+    --text-secondary: var(--dark-secondary);
+    --accent: var(--dark-accent);
+    --border: var(--dark-border);
+}
+
+body[data-theme="light"] {
+    --bg-main: var(--light-bg);
+    --bg-panel: var(--light-panel);
+    --text-main: var(--light-text);
+    --text-secondary: var(--light-secondary);
+    --accent: var(--light-accent);
+    --border: var(--light-border);
+}
+
+/* ============================================================
+   🔧 RESET & BASE
+   ============================================================ */
+
+* {
+    margin: 0;
+    padding: 0;
+    font-family: var(--font-main);
+    box-sizing: border-box;
+}
+
+body {
+    background: var(--bg-main);
+    color: var(--text-main);
+    padding: 25px;
+    transition: background var(--transition), color var(--transition);
+}
+
+/* ============================================================
+   🏷️ TITULOS PRO
+   ============================================================ */
+
+header {
+    text-align: center;
+    margin-bottom: 25px;
+    animation: fadeIn 0.5s ease-out;
+}
+
+header h1 {
+    font-size: 2.7rem;
+    color: var(--accent);
+    letter-spacing: 1px;
+    text-shadow: 0 0 12px rgba(0,255,255,0.4);
+}
+
+.subtitle {
+    margin-top: 5px;
+    color: var(--text-secondary);
+}
+
+/* Toggle dark/light */
+.theme-toggle {
+    cursor: pointer;
+    color: var(--accent);
+    margin-top: 15px;
+    font-size: 0.95em;
+    opacity: 0.8;
+    transition: 0.2s;
+}
+.theme-toggle:hover {
+    opacity: 1;
+    text-shadow: 0 0 8px var(--accent);
+}
+
+/* ============================================================
+   📐 LAYOUT PRO
+   ============================================================ */
+
+.layout {
+    display: grid;
+    grid-template-columns: 65% 35%;
+    gap: 25px;
+    max-width: 1400px;
+    margin: auto;
+}
+
+.left, .right {
+    background: var(--bg-panel);
+    padding: 20px;
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+    backdrop-filter: blur(6px);
+    transition: background var(--transition), border var(--transition);
+    box-shadow: 0 0 18px rgba(0,0,0,0.4);
+}
+
+/* ============================================================
+   🎮 SIMULADOR CANVAS
+   ============================================================ */
+
+#board {
+    border: 3px solid var(--accent);
+    background: #222;
+    border-radius: 8px;
+    box-shadow: 0 0 20px rgba(0,255,255,0.25);
+    animation: glowCanvas 6s infinite alternate;
+}
+
+@keyframes glowCanvas {
+    0% { box-shadow: 0 0 12px rgba(0,255,255,0.2); }
+    100% { box-shadow: 0 0 24px rgba(0,255,255,0.35); }
+}
+
+/* ============================================================
+   🧭 CONTROLES PRO
+   ============================================================ */
+
+.controls select,
+.controls input {
+    padding: 10px;
+    background: rgba(45,45,45,0.75);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text-main);
+    transition: var(--transition);
+}
+
+.controls select:focus,
+.controls input:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 8px var(--accent);
+}
+
+/* ============================================================
+   🔘 BOTONES PRO
+   ============================================================ */
+
+button {
+    padding: 10px 16px;
+    font-weight: bold;
+    background: #2e2e2e;
+    color: var(--text-main);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    transition: var(--transition);
+    cursor: pointer;
+}
+
+button:hover {
+    background: var(--accent);
+    color: #000;
+    box-shadow: 0 0 10px var(--accent);
+}
+
+#btnRun, #btnTrain {
+    background: #32ff7e;
+    color: #000;
+}
+#btnStopTrain {
+    background: #ff5555;
+    color: #fff;
+}
+
+/* ============================================================
+   📊 PANEL DERECHO PRO: Q-table + Log
+   ============================================================ */
+
+#kbView, #log {
+    background: rgba(0,0,0,0.8);
+    border-radius: var(--radius);
+    border: 1px solid var(--accent);
+    padding: 12px;
+    font-size: 0.92em;
+    height: 320px;
+    overflow: auto;
+}
+
+/* Estado colapsable */
+.collapsible {
+    cursor: pointer;
+    padding: 8px 12px;
+    background: var(--accent);
+    color: #000;
+    border-radius: 5px;
+    font-weight: bold;
+    transition: 0.25s;
+    margin-bottom: 6px;
+}
+.collapsible:hover {
+    box-shadow: 0 0 8px var(--accent);
+}
+.content-collapsible {
+    display: none;
+    overflow: hidden;
+}
+
+/* ============================================================
+   📱 RESPONSIVE
+   ============================================================ */
+
+@media (max-width: 1100px) {
+    .layout {
+        grid-template-columns: 1fr;
+    }
+    .main-visual-area {
+        flex-direction: column;
+        align-items: center;
+    }
+}
