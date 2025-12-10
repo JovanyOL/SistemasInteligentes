@@ -1,130 +1,151 @@
-/* ui.js — render del canvas + trayectorias */
+/* ============================================================
+   ui.js — Render PRO con trayectoria y colores por acción
+   ============================================================ */
 
 const canvas = document.getElementById("board");
 const ctx = canvas.getContext("2d");
 
-function renderQView() {
-    document.getElementById("kbView").textContent =
-        JSON.stringify(QTABLE, null, 2);
+// ============================================================
+// Colores PRO por acción
+// ============================================================
+
+const LION_COLORS = {
+    avanzar: "#ffcc66",
+    esconder: "#7b9d6f",
+    atacar: "#c04a2a",
+    default: "#ffcc66"
+};
+
+const IMPALA_COLORS = {
+    ver_arriba: "#66c8ff",
+    ver_izquierda: "#66c8ff",
+    ver_derecha: "#66c8ff",
+    beber: "#999999",
+    huir: "#ff5577",
+    default: "#66c8ff"
+};
+
+// para trayectorias
+const PATH_COLORS = {
+    lion: "rgba(255,200,100,0.45)",
+    impala: "rgba(120,210,255,0.45)"
+};
+
+// ============================================================
+// pushLog seguro (no falla si no existe #log)
+// ============================================================
+function pushLog(msg) {
+    const log = document.getElementById("log");
+    if (!log) return; // evitar errores
+
+    const line = document.createElement("div");
+    line.textContent = msg;
+    log.prepend(line);
 }
 
-/* ================================================================
-   TRAJECTORY BUFFERS
-=================================================================*/
+// ============================================================
+// Dibujo principal
+// ============================================================
+function draw(state) {
+    if (!ctx) return;
 
-let lionTrail = [];
-let impalaTrail = [];
-
-/* Llamado por initState() */
-function resetTrails() {
-    lionTrail = [];
-    impalaTrail = [];
-}
-
-/* ================================================================
-   DIBUJAR LA GRILLA
-=================================================================*/
-function drawGrid(state) {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    ctx.fillStyle = "#1e1e1e";
+    drawGrid();
+    drawPaths(state);
+    drawImpala(state);
+    drawLion(state);
+}
+
+// ============================================================
+// Dibujar cuadrícula 19×19
+// ============================================================
+function drawGrid() {
+    ctx.fillStyle = "#2b2b2b";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    // Grid lines
-    ctx.strokeStyle = "#333";
+    ctx.strokeStyle = "#444";
     for (let r = 0; r < GRID; r++) {
         for (let c = 0; c < GRID; c++) {
-            ctx.strokeRect(c * CELL, r * CELL, CELL, CELL);
+            ctx.strokeRect(c * CELL + 10, r * CELL + 10, CELL, CELL);
         }
-    }
-
-    /* ============================================================
-       TRAIL RECORDING
-    ============================================================ */
-
-    // registrar punto del león
-    lionTrail.push({
-        x: state.lion.pos.x * CELL + CELL / 2,
-        y: state.lion.pos.y * CELL + CELL / 2
-    });
-
-    // registrar punto del impala
-    impalaTrail.push({
-        x: state.impala.pos.x * CELL + CELL / 2,
-        y: state.impala.pos.y * CELL + CELL / 2
-    });
-
-    drawTrails();
-
-    /* ============================================================
-       DIBUJAR AGENTES
-    ============================================================ */
-
-    // León
-    drawAgent(
-        state.lion.pos.x,
-        state.lion.pos.y,
-        state.lion.hidden ? "#777" : "#ff4444"
-    );
-
-    // Impala
-    drawAgent(state.impala.pos.x, state.impala.pos.y, "#00ffff");
-}
-
-/* ================================================================
-   DIBUJA LAS TRAYECTORIAS
-=================================================================*/
-function drawTrails() {
-    // Impala trail (cyan)
-    if (impalaTrail.length > 1) {
-        ctx.beginPath();
-        ctx.lineWidth = 2;
-        ctx.strokeStyle = "#00ffff";
-        ctx.moveTo(impalaTrail[0].x, impalaTrail[0].y);
-        for (let i = 1; i < impalaTrail.length; i++) {
-            ctx.lineTo(impalaTrail[i].x, impalaTrail[i].y);
-        }
-        ctx.stroke();
-    }
-
-    // León trail (roja)
-    if (lionTrail.length > 1) {
-        ctx.beginPath();
-        ctx.lineWidth = 2;
-        ctx.strokeStyle = "#ff4444";
-        ctx.moveTo(lionTrail[0].x, lionTrail[0].y);
-        for (let i = 1; i < lionTrail.length; i++) {
-            ctx.lineTo(lionTrail[i].x, lionTrail[i].y);
-        }
-        ctx.stroke();
     }
 }
 
-/* ================================================================
-   DIBUJA UN AGENTE EN EL TABLERO
-=================================================================*/
-function drawAgent(x, y, color) {
-    const cx = x * CELL + CELL / 2;
-    const cy = y * CELL + CELL / 2;
+// ============================================================
+// Dibuja trayectorias del impala y león
+// ============================================================
+function drawPaths(state) {
+    ctx.lineWidth = 2;
+
+    // trayectoria impala
+    ctx.strokeStyle = PATH_COLORS.impala;
+    ctx.beginPath();
+    state.impala.path.forEach((p, i) => {
+        const x = p.x * CELL + 10 + CELL / 2;
+        const y = p.y * CELL + 10 + CELL / 2;
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+    });
+    ctx.stroke();
+
+    // trayectoria león
+    ctx.strokeStyle = PATH_COLORS.lion;
+    ctx.beginPath();
+    state.lion.path.forEach((p, i) => {
+        const x = p.x * CELL + 10 + CELL / 2;
+        const y = p.y * CELL + 10 + CELL / 2;
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+    });
+    ctx.stroke();
+}
+
+// ============================================================
+// Dibujar Impala
+// ============================================================
+function drawImpala(state) {
+    const imp = state.impala.pos;
+
+    const x = imp.x * CELL + 10 + CELL / 2;
+    const y = imp.y * CELL + 10 + CELL / 2;
+
+    const action = state.impala.fleeing ? "huir" : (state.lastImpalaAction || "default");
+    const color = IMPALA_COLORS[action] || IMPALA_COLORS.default;
 
     ctx.beginPath();
     ctx.fillStyle = color;
-    ctx.arc(cx, cy, CELL * 0.35, 0, Math.PI * 2);
+    ctx.arc(x, y, CELL * 0.30, 0, Math.PI * 2);
     ctx.fill();
+
+    // Etiqueta
+    ctx.fillStyle = "#ffffff";
+    ctx.font = "12px monospace";
+    ctx.fillText("Imp", x - 10, y - 12);
 }
 
-/* ================================================================
-   LOG SYSTEM
-=================================================================*/
+// ============================================================
+// Dibujar León
+// ============================================================
+function drawLion(state) {
+    const leon = state.lion.pos;
 
-let LOG = null;
+    const x = leon.x * CELL + 10 + CELL / 2;
+    const y = leon.y * CELL + 10 + CELL / 2;
 
-function initLogElement() {
-    LOG = document.getElementById("log");
+    let action = state.lastLionAction || "default";
+    if (state.lion.hidden) action = "esconder";
+
+    const color = LION_COLORS[action] || LION_COLORS.default;
+
+    ctx.beginPath();
+    ctx.fillStyle = color;
+    ctx.arc(x, y, CELL * 0.30, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Etiqueta
+    ctx.fillStyle = "#000";
+    ctx.font = "12px monospace";
+    ctx.fillText("Leon", x - 15, y - 12);
 }
 
-function pushLog(msg) {
-    const div = document.createElement("div");
-    div.textContent = msg;
-    LOG.prepend(div);
-}
