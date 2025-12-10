@@ -1,4 +1,4 @@
-/* main.js — Versión corregida y coherente (usa initState, no createInitialState) */
+/* main.js — Versión final sin createInitialState (reemplaza todo el archivo) */
 
 const MAX_STEPS_PER_EPISODE = 1000;
 
@@ -8,15 +8,10 @@ let TRAIN_ABORT = false;
 let training = false;
 let HUNT_OVER = false;
 
-/* -------------------------
-   Util: distancia Manhattan
-   ------------------------- */
+/* Utilidad: Manhattan */
 function manhattan(a, b) { return Math.abs(a.x - b.x) + Math.abs(a.y - b.y); }
 
-/* -------------------------
-   Compat: obtener acción del impala
-   (si ya la tienes en otro archivo, está bien; esto es fallback)
-   ------------------------- */
+/* Fallback: obtener acción del impala si no existe en otros módulos */
 function getImpalaAction() {
   if (!state) return 'ver_frente';
   if (state.impala && state.impala.fleeing) return 'huir';
@@ -32,50 +27,50 @@ function getImpalaAction() {
   return seq.length === 0 ? 'ver_frente' : seq[(state.time-1) % seq.length];
 }
 
-/* -------------------------
-   Inicializar estado (usa tu initState si existe; este es seguro)
-   ------------------------- */
+/* safeInitState: usa initState si existe (tu versión recomendada), si no construye un state básico */
 function safeInitState(startPos) {
   if (typeof initState === 'function') {
-    // usa la initState que ya tienes implementada (recomendado)
-    initState(startPos);
-    // recupera la variable global 'state' si initState la creó
-    if (!state && typeof window.state !== 'undefined') state = window.state;
-    return;
+    // usa la initState definida en tu proyecto
+    try {
+      initState(startPos);
+      // si initState crea una variable global 'state' distinta, deja que esa sea
+      if (typeof window.state !== 'undefined' && !state) state = window.state;
+      return;
+    } catch (e) {
+      console.warn('initState() lanzó error, creando estado por fallback:', e);
+    }
   }
 
-  // Fallback: crear un state simple (no recomendado, solo por seguridad)
+  // fallback seguro (solo si no tienes initState)
   const posNum = (startPos === 'rand') ? 1 : Number(startPos || 1);
+  const startPosCoords = (typeof POS_MAP !== 'undefined' && POS_MAP[posNum]) ? POS_MAP[posNum] : { x: 0, y: 0 };
+  const impStart = (typeof IMPALA_START !== 'undefined') ? IMPALA_START : { x: 9, y: 9 };
+
   state = {
-    lion: { pos: (typeof POS_MAP !== 'undefined' && POS_MAP[posNum]) ? { ...POS_MAP[posNum] } : {x:0,y:0}, hidden:false, mode:'normal', startPosNum: posNum },
-    impala: { pos: (typeof IMPALA_START !== 'undefined') ? {...IMPALA_START} : {x:9,y:9}, fleeing:false, fleeDir:null, fleeVel:0 },
+    lion: { pos: { ...startPosCoords }, hidden:false, mode:'normal', startPosNum: posNum },
+    impala: { pos: { ...impStart }, fleeing:false, fleeDir:null, fleeVel:0 },
     time: 1,
     lastImpala: null,
     lastLion: null,
     running: false,
     fastMode: false,
-    pathLion: [{ ...( (typeof POS_MAP !== 'undefined' && POS_MAP[posNum]) ? POS_MAP[posNum] : {x:0,y:0} ) }],
-    pathImpala: [{ ...(typeof IMPALA_START !== 'undefined' ? IMPALA_START : {x:9,y:9}) }]
+    pathLion: [{ ...startPosCoords }],
+    pathImpala: [{ ...impStart }]
   };
 }
 
-/* -------------------------
-   End hunt helper (centraliza finalizar)
-   ------------------------- */
+/* endHunt: centraliza finalización */
 function endHunt(reason) {
   HUNT_OVER = true;
   if (typeof pushLog === 'function') pushLog('Cacería finalizada: ' + reason);
   if (document.getElementById('status')) document.getElementById('status').textContent = reason;
   if (typeof renderQView === 'function') renderQView();
   if (typeof drawGrid === 'function') drawGrid(state);
-  // deshabilitar botón
   const btn = document.getElementById('btnStep');
   if (btn) btn.disabled = true;
 }
 
-/* -------------------------
-   Aplicar acción del león (fallback seguro)
-   ------------------------- */
+/* applyLionActionFallback: si falta applyLionAction, usamos esto */
 function applyLionActionFallback(action) {
   if (!state || !state.lion) return;
   if (action === 'avanzar' && typeof lionAdvanceTowardsImpala === 'function') {
@@ -84,27 +79,41 @@ function applyLionActionFallback(action) {
   } else if (action === 'esconder') {
     state.lion.hidden = true;
   } else if (action === 'atacar') {
-    // prefer lionAttackStep if existe
     if (typeof lionAttackStep === 'function') lionAttackStep(state);
     else {
-      if (typeof lionAdvanceTowardsImpala === 'function') { lionAdvanceTowardsImpala(state); lionAdvanceTowardsImpala(state); }
+      if (typeof lionAdvanceTowardsImpala === 'function') {
+        lionAdvanceTowardsImpala(state);
+        lionAdvanceTowardsImpala(state);
+      }
       state.lion.mode = 'attacking';
     }
-  } // esperar -> noop
+  }
 }
 
-/* -------------------------
-   Paso único de simulación (T)
-   ------------------------- */
+/* checkAndTriggerImpalaFlee fallback (if not provided) */
+function checkAndTriggerImpalaFleeFallback(lionAction, impalaAction, distBefore) {
+  if (!state) return { fled:false, causedByLion:false, immediateFailure:false };
+  // Simplified rules: if attack or dist < 3 -> flee
+  if (!state.impala.fleeing && (lionAction === 'atacar' || distBefore < 3)) {
+    if (typeof startImpalaFlee === 'function') startImpalaFlee(state);
+    else {
+      state.impala.fleeing = true;
+      state.impala.fleeDir = (state.impala.pos.x <= state.lion.pos.x) ? 'E' : 'W';
+      state.impala.fleeVel = 1;
+    }
+    const lionSpeed = (state.lion.mode === 'attacking') ? 2 : 1;
+    const impFirst = state.impala.fleeVel || 1;
+    return { fled:true, causedByLion:true, immediateFailure: impFirst >= lionSpeed };
+  }
+  return { fled:false, causedByLion:false, immediateFailure:false };
+}
+
+/* stepOnce: un paso de simulación */
 function stepOnce() {
   if (!state) {
-    // intentar inicializar si no existe
     safeInitState(document.getElementById && document.getElementById('startPos') ? document.getElementById('startPos').value : 'rand');
   }
-  if (HUNT_OVER) {
-    if (typeof pushLog === 'function') pushLog('La cacería ya terminó. Presiona RESET.');
-    return false;
-  }
+  if (HUNT_OVER) { if (typeof pushLog === 'function') pushLog('La cacería ya terminó. Usa RESET.'); return false; }
 
   // 1) Impala decide y actúa
   const impAction = (typeof getImpalaAction === 'function') ? getImpalaAction() : 'ver_frente';
@@ -112,13 +121,13 @@ function stepOnce() {
   state.lastImpala = impAction;
   if (state.pathImpala) state.pathImpala.push({ x: state.impala.pos.x, y: state.impala.pos.y });
 
-  // si impala alcanzó borde => termina con fracaso
+  // si impala llegó al borde -> fracaso
   if (state.impala.pos.x <= 0 || state.impala.pos.x >= GRID - 1) {
     endHunt('Fracaso (impala escapó al borde)');
     return true;
   }
 
-  // 2) Observación antes del león
+  // 2) Observación
   const lp = state.lion.pos;
   const dBefore = manhattan(lp, state.impala.pos);
 
@@ -130,28 +139,20 @@ function stepOnce() {
     attacking: state.lion.mode === 'attacking'
   };
 
-  // 3) León elige acción por Q (o fallback)
+  // 3) León elige acción
   let lionAction = 'avanzar';
   if (typeof chooseActionQ === 'function') lionAction = chooseActionQ(obs);
   state.lastLion = lionAction;
 
-  // 4) Aplicar acción del león (usar applyLionAction si existe)
+  // 4) Aplicar acción del león
   if (typeof applyLionAction === 'function') applyLionAction(lionAction, dBefore);
   else applyLionActionFallback(lionAction);
-
   if (state.pathLion) state.pathLion.push({ x: state.lion.pos.x, y: state.lion.pos.y });
 
-  // 5) comprobar si impala huye por visión/ataque/dist
+  // 5) check flee
   let fleeInfo = { fled:false, causedByLion:false, immediateFailure:false };
   if (typeof checkAndTriggerImpalaFlee === 'function') fleeInfo = checkAndTriggerImpalaFlee(lionAction, impAction, dBefore);
-  else {
-    // fallback: si distancia <3 o ataque -> huir
-    if (!state.impala.fleeing && (lionAction === 'atacar' || dBefore < 3)) {
-      if (typeof startImpalaFlee === 'function') startImpalaFlee(state);
-      state.impala.fleeing = true;
-      fleeInfo = { fled:true, causedByLion:true, immediateFailure: (state.impala.fleeVel >= (state.lion.mode === 'attacking' ? 2 : 1)) };
-    }
-  }
+  else fleeInfo = checkAndTriggerImpalaFleeFallback(lionAction, impAction, dBefore);
 
   if (fleeInfo.fled && fleeInfo.immediateFailure) {
     if (typeof updateQ === 'function') updateQ(obs, lionAction, -100, null);
@@ -167,10 +168,9 @@ function stepOnce() {
     return true;
   }
 
-  // 7) si impala empezó a huir en este T y fue por león => fracaso
-  if (state.impala.fleeing && !state.impala._wasFleeingAtStartOfStep) {
-    // note: we didn't store previous per-step flag, so check if it just became true:
-    // if fleeInfo.causedByLion consider fracaso
+  // 7) si impala empezó a huir en este T y fue por el león => fracaso
+  // Intentamos detectar si huye y la causa fue el león
+  if (state.impala.fleeing && !state._impalaWasFleeingBeforeStep) {
     if (fleeInfo.causedByLion) {
       if (typeof updateQ === 'function') updateQ(obs, lionAction, -100, null);
       endHunt('Fracaso (impala huyó por culpa del león)');
@@ -181,7 +181,7 @@ function stepOnce() {
     }
   }
 
-  // 8) no terminal: update Q with shaping reward
+  // 8) no terminal -> update Q
   const dAfter = manhattan(state.lion.pos, state.impala.pos);
   const nextObs = {
     posNum: state.lion.startPosNum || (typeof getPosNumFromCoords === 'function' ? getPosNumFromCoords(state.lion.pos) : '*'),
@@ -203,9 +203,7 @@ function stepOnce() {
   return false;
 }
 
-/* -------------------------
-   Entrenamiento básico (usa trainN provisto si existe)
-   ------------------------- */
+/* Entrenamiento simplificado (safe) */
 async function trainN(n, positions = [1,2,3,4,6,7,8]) {
   TRAIN_ABORT = false;
   training = true;
@@ -233,9 +231,7 @@ async function trainN(n, positions = [1,2,3,4,6,7,8]) {
   if (typeof drawGrid === 'function') drawGrid(state);
 }
 
-/* -------------------------
-   UI Hooks
-   ------------------------- */
+/* UI hooks */
 function setupUIHooks() {
   const btnReset = document.getElementById('btnReset');
   if (btnReset) btnReset.addEventListener('click', () => {
@@ -243,24 +239,25 @@ function setupUIHooks() {
     const s = document.getElementById('startPos') ? document.getElementById('startPos').value : 'rand';
     safeInitState(s);
     if (typeof pushLog === 'function') pushLog('Estado reiniciado.');
+    // re-enable step button
+    const btn = document.getElementById('btnStep');
+    if (btn) btn.disabled = false;
   });
 
   const btnStep = document.getElementById('btnStep');
-  if (btnStep) {
-    btnStep.addEventListener('click', () => {
-      if (HUNT_OVER) {
-        if (typeof pushLog === 'function') pushLog('La cacería ya terminó. Usa RESET.');
-        return;
-      }
-      stepOnce();
-    });
-  }
+  if (btnStep) btnStep.addEventListener('click', () => {
+    if (HUNT_OVER) {
+      if (typeof pushLog === 'function') pushLog('La cacería ya terminó. Usa RESET.');
+      return;
+    }
+    stepOnce();
+  });
 
   const btnTrain = document.getElementById('btnTrain');
   if (btnTrain) btnTrain.addEventListener('click', () => trainN(1000));
 
-  const btnStopTrain = document.getElementById('btnStopTrain');
-  if (btnStopTrain) btnStopTrain.addEventListener('click', () => { TRAIN_ABORT = true; if (typeof pushLog === 'function') pushLog('Detención solicitada.'); });
+  const btnStop = document.getElementById('btnStopTrain');
+  if (btnStop) btnStop.addEventListener('click', () => { TRAIN_ABORT = true; if (typeof pushLog === 'function') pushLog('Detención solicitada.'); });
 
   const btnSave = document.getElementById('btnSaveKB');
   if (btnSave) btnSave.addEventListener('click', () => { if (typeof downloadQ === 'function') downloadQ(); if (typeof pushLog === 'function') pushLog('Q-table guardada.'); });
@@ -270,8 +267,7 @@ function setupUIHooks() {
 
   const kbFile = document.getElementById('kbFile');
   if (kbFile) kbFile.addEventListener('change', (e) => {
-    const f = e.target.files[0];
-    if (!f) return;
+    const f = e.target.files[0]; if (!f) return;
     const r = new FileReader();
     r.onload = () => {
       try {
@@ -288,17 +284,11 @@ function setupUIHooks() {
   });
 }
 
-/* -------------------------
-   Inicialización al cargar la página
-   ------------------------- */
+/* Init page */
 window.addEventListener('load', () => {
-  // intentar cargar Q local si existe
   if (typeof loadQFromLocal === 'function') loadQFromLocal();
-  // inicializar estado (intenta usar initState si existe)
   safeInitState(document.getElementById && document.getElementById('startPos') ? document.getElementById('startPos').value : 'rand');
-  // hooks UI
   setupUIHooks();
-  // dibujar y mostrar
   if (typeof renderQView === 'function') renderQView();
   if (typeof drawGrid === 'function') drawGrid(state);
 });
